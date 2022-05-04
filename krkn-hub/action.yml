@@ -1,0 +1,32 @@
+name: Rebuild krkn-hub
+description: Rebuilds krkn-hub images
+inputs:
+  QUAY_USER:
+    description: Quay user
+    required: true
+  QUAY_TOKEN:
+    description: Quay token
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout krkn-hub repo
+      uses: actions/checkout@v3
+      with:
+        repository: chaos-kubox/krkn-hub
+        path: krkn-hub
+    - name: Login in quay
+      shell: bash
+      run: echo '${QUAY_TOKEN}' | docker login quay.io -u ${QUAY_USER} --password-stdin
+      env:
+        QUAY_USER: ${{ inputs.QUAY_USER }}
+        QUAY_TOKEN: ${{ inputs.QUAY_TOKEN }}
+    - name: Build the Docker images
+      shell: bash
+      run: docker-compose build --parallel
+      working-directory: ./krkn-hub
+    - name: Push the Docker images
+      shell: bash
+      run: docker-compose push
+      working-directory: ./krkn-hub
