@@ -18,7 +18,7 @@ runs:
         path: krkn-hub
     - name: Login in quay
       shell: bash
-      run: echo '${QUAY_TOKEN}' | docker login quay.io -u ${QUAY_USER} --password-stdin
+      run: echo "${QUAY_TOKEN}" | docker login quay.io -u ${QUAY_USER} --password-stdin
       env:
         QUAY_USER: ${{ inputs.QUAY_USER }}
         QUAY_TOKEN: ${{ inputs.QUAY_TOKEN }}
