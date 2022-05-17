@@ -1,4 +1,4 @@
-name: Kind Cluster
+name: KinD Cluster
 description: Creates KinD clusters
       
 runs:
@@ -21,7 +21,11 @@ runs:
     - name: Bring up KinD cluster
       shell: bash
       run: |
-        kind create cluster --wait 300s
+        if [ -f .kind-config.yaml ]; then
+          kind create cluster --wait 300s --config=.kind-config.yaml
+        else
+          kind create cluster --wait 300s
+        fi
     - name: Wait for KinD
       shell: bash
       run: |
@@ -41,3 +45,6 @@ runs:
           exit 1
         fi
         echo "KinD is ready for use."
+    - name: List KinD nodes
+      shell: bash
+      run: kubectl get nodes
