@@ -1,6 +1,6 @@
-name: KinD Cluster
-description: Creates KinD clusters
-      
+name: Create KinD
+description: Creates KinD cluster
+
 runs:
   using: composite
   steps:
@@ -14,15 +14,32 @@ runs:
         sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.11.1/kind-linux-amd64
         sudo curl -Lo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         sudo chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
-    - name: Bring up KinD cluster
+    - name: Start KinD
       shell: bash
       run: |
-        if [ -f .kind-config.yaml ]; then
-          kind create cluster --wait 300s --config=.kind-config.yaml
+        if [ -f kind-config.yml ]; then
+          kind create cluster --wait 300s --config=kind-config.yml
         else
           kind create cluster --wait 300s
         fi
-        sleep 50
+    - name: Wait
+      shell: bash
+      run: |
+        for i in {1..20}
+        do
+          kubectl get nodes > output
+          cat output
+          awk '/NotReady/ {print $2}' output > check
+          checknow=$(awk 'NR==1 {print}' check)
+          if [ "$checknow" = "NotReady" ]; then
+            echo "KinD cluster not ready yet"
+          else
+            echo "KinD cluster is up"
+            break
+          fi
+          sleep 5
+        done
+        echo "KinD is ready for use."
     - name: List KinD nodes
       shell: bash
       run: kubectl get nodes
