@@ -1,0 +1,1 @@
+git+https://github.com/redhat-chaos/krkn-hub@main
