@@ -1,0 +1,32 @@
+name: Rebuild krkn
+description: Rebuilds krkn images
+inputs:
+  QUAY_USER:
+    description: Quay user
+    required: true
+  QUAY_TOKEN:
+    description: Quay token
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout krkn repo
+      uses: actions/checkout@v3
+      with:
+        repository: redhat-chaos/krkn
+        path: krkn
+    - name: Login in quay
+      shell: bash
+      run: echo "${QUAY_TOKEN}" | docker login quay.io -u ${QUAY_USER} --password-stdin
+      env:
+        QUAY_USER: ${{ inputs.QUAY_USER }}
+        QUAY_TOKEN: ${{ inputs.QUAY_TOKEN }}
+    - name: Build the Docker image
+      shell: bash
+      run: docker build --no-cache -t quay.io/redhat-chaos/krkn containers/
+      working-directory: ./krkn
+    - name: Push the Docker images
+      shell: bash
+      run: docker push quay.io/redhat-chaos/krkn
+      working-directory: ./krkn
