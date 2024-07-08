@@ -30,3 +30,5 @@ runs:
       shell: bash
       run: docker-compose push
       working-directory: ./krkn-hub
+    - name: Make push to Prow-Scripts
+      uses: redhat-chaos/actions/prow-scripts@main
