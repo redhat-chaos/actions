@@ -35,5 +35,5 @@ runs:
       working-directory: ./krkn-hub
     - name: Make push to Prow-Scripts
       uses: redhat-chaos/actions/prow-scripts@main
-      env:
+      with:
         AUTOPUSH: ${{ inputs.AUTOPUSH }}
