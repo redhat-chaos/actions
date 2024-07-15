@@ -1,4 +1,8 @@
 name: Auto Push 
+inputs:
+  AUTOPUSH:
+    description: Auto push token
+    required: true
 on:
   workflow_dispatch:
     inputs:
@@ -6,8 +10,7 @@ on:
         description: Only run tests that match the regular expression
         default: ""
         required: false
-permissions:
-  contents: write
+permissions: write-all
 runs:
   using: composite
   steps:
@@ -19,6 +22,8 @@ runs:
   - name: Update README with current date/time
     shell: bash
     working-directory: ./prow-scripts
+    env:
+      GITHUB_TOKEN: ${{ inputs.AUTOPUSH }}
     run: |
       current_date=$(date +"%H:%M %b %d %Y")
       sed -i "s/[0-9]\{2\}:[0-9]\{2\} [A-Z][a-z]\{2\} [0-9]\{2\} [0-9]\{4\}/$current_date/g" README.md
