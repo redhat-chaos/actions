@@ -7,6 +7,9 @@ inputs:
   QUAY_TOKEN:
     description: Quay token
     required: true
+  AUTOPUSH:
+    description: Auto push token
+    required: true
 
 runs:
   using: composite
@@ -32,3 +35,5 @@ runs:
       working-directory: ./krkn-hub
     - name: Make push to Prow-Scripts
       uses: redhat-chaos/actions/prow-scripts@main
+      env:
+        AUTOPUSH: ${{ inputs.AUTOPUSH }}
