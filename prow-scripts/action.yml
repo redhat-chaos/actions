@@ -10,9 +10,9 @@ on:
         description: Only run tests that match the regular expression
         default: ""
         required: false
+permissions: write-all
 runs:
   using: composite
-  permissions: write-all
   steps:
   - name: Check out code
     uses: actions/checkout@main
@@ -20,7 +20,7 @@ runs:
       repository: redhat-chaos/prow-scripts
       path: prow-scripts
       fetch-depth: 0
-      token: ${{ secrets.AutoPush }}
+      token: ${{ inputs.AUTOPUSH }}
   - name: Update README with current date/time
     shell: bash
     working-directory: ./prow-scripts
