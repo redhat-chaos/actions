@@ -27,11 +27,11 @@ runs:
         QUAY_TOKEN: ${{ inputs.QUAY_TOKEN }}
     - name: Build the Docker images
       shell: bash
-      run: docker-compose build --parallel
+      run: docker compose build --parallel
       working-directory: ./krkn-hub
     - name: Push the Docker images
       shell: bash
-      run: docker-compose push
+      run: docker compose push
       working-directory: ./krkn-hub
     - name: Make push to Prow-Scripts
       uses: redhat-chaos/actions/prow-scripts@main
