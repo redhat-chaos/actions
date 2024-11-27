@@ -11,14 +11,14 @@ runs:
     - name: Install KinD
       shell: bash
       run: |
-        sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.16.0/kind-linux-amd64
+        sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.26.0/kind-linux-amd64
         sudo curl -Lo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
         sudo chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
     - name: Start KinD
       shell: bash
       run: |
-        if [ -f kind-config.yml ]; then
-          kind create cluster --wait 300s --config=kind-config.yml
+        if [ -f .kind-config.yml ]; then
+          kind create cluster --wait 300s --config=.kind-config.yml
         else
           kind create cluster --wait 300s
         fi
