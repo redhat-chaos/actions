@@ -24,10 +24,10 @@ runs:
       run: docker login quay.io -u ${QUAY_USER} -p ${QUAY_TOKEN}
       env:
         QUAY_USER: ${{ inputs.QUAY_USER }}
-        QUAY_TOKEN: ${{ inputs.QUAY_TOKEN }
+        QUAY_TOKEN: ${{ inputs.QUAY_TOKEN }}
     - name: Add krknctl metadata to Dockerfiles
-      run: |
-        bash build.sh
+      shell: bash
+      run: ./build.sh
     - name: Build the Docker images
       shell: bash
       run: docker compose build --parallel
