@@ -28,6 +28,7 @@ runs:
     - name: Add krknctl metadata to Dockerfiles
       shell: bash
       run: ./build.sh
+      working-directory: ./krkn-hub
     - name: Build the Docker images
       shell: bash
       run: docker compose build --parallel
