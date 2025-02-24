@@ -17,8 +17,8 @@ runs:
     - name: Start KinD
       shell: bash
       run: |
-        if [ -f .kind-config.yml ]; then
-          kind create cluster --wait 300s --config=.kind-config.yml
+        if [ -f kind-config.yml ]; then
+          kind create cluster --wait 300s --config=kind-config.yml
         else
           kind create cluster --wait 300s
         fi
