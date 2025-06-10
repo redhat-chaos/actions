@@ -19,3 +19,5 @@ jobs:
         run: kubectl get nodes
       - name: Create POD
         run: kubectl apply -f https://k8s.io/examples/pods/simple-pod.yaml
+      - name: Check pods
+        run: kubectl get pods -A
