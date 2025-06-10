@@ -1,0 +1,29 @@
+name: Create Prometheus
+description: Creates Prometheus stack on a cluster
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Deploy prometheus
+      shell: bash
+      run: |
+        # nodePort mapping 30000 -> http://localhost:9090
+        kubectl create namespace monitoring
+        helm install \
+        --wait --timeout 360s \
+        kind-prometheus \
+        prometheus-community/kube-prometheus-stack \
+        --namespace monitoring \
+        --set prometheus.service.nodePort=30000 \
+        --set prometheus.service.type=NodePort \
+        --set grafana.service.nodePort=31000 \
+        --set grafana.service.type=NodePort \
+        --set alertmanager.service.nodePort=32000 \
+        --set alertmanager.service.type=NodePort \
+        --set prometheus-node-exporter.service.nodePort=32001 \
+        --set prometheus-node-exporter.service.type=NodePort \
+        --set prometheus.prometheusSpec.maximumStartupDurationSeconds=300
