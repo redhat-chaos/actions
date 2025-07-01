@@ -21,6 +21,12 @@ runs:
       uses: actions/checkout@v3
       with:
         submodules: true
+    - name: Install Helm & add repos
+      shell: bash
+      run: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+        helm repo add stable https://charts.helm.sh/stable
+        helm repo update
     - name: Deploy Elasticsearch
       shell: bash
       env:
