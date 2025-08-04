@@ -15,9 +15,13 @@ runs:
 
         echo $VERSION
         kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
-        kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
         pod_names=$(kubectl get pod -o name --no-headers -n kubevirt)
-        kubectl wait -n kubevirt --for=condition=Ready $(echo $pod_names) --timeout 60
+        kubectl wait -n kubevirt --for=condition=Ready $(echo $pod_names) --timeout 100s
+        kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+
+        sleep 10
+        kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
+        
         kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}"
         kubectl get all -n kubevirt
         
@@ -34,7 +38,7 @@ runs:
       shell: bash
       run: |
         wget https://kubevirt.io/labs/manifests/vm.yaml
-        kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+        
         kubectl apply -f https://kubevirt.io/labs/manifests/vm.yaml
         kubectl get vms
         kubectl get vms -o yaml testvm
