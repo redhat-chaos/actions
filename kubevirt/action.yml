@@ -25,11 +25,16 @@ runs:
         sleep 10
         kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
 
-        
+        counter=0
         status=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}")
-        while [[ $status != "Deployed" ]]; do 
+        while [[ $status != "Deployed" ]]; do
+          echo "status $status"
           status=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}")
           sleep 5
+          counter=$((counter + 1))
+          if [[ $counter -ge 10 ]]; then
+            break
+          fi
         done
         kubectl get all -n kubevirt
         
@@ -53,6 +58,7 @@ runs:
         kubectl get vms -o yaml testvm
         virtctl start testvm
         kubectl patch virtualmachine testvm --type merge -p '{"spec":{"runStrategy": "Always"}}'
+        sleep 40
         kubectl get vmis
         kubectl get vmis -o yaml testvm
         pod_name=$(kubectl get pod -o name --no-headers)
