@@ -37,6 +37,7 @@ runs:
           sleep 5
           counter=$((counter + 1))
           if [[ $counter -ge 20 ]]; then
+            kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=json
             break
           fi
         done
