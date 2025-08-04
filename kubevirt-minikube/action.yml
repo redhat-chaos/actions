@@ -1,0 +1,70 @@
+name: Create KubeVirt
+description: Create KubeVirt on Minikube Cluster 
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Minikube Kubevirt add on
+      shell: bash
+      run: | 
+        minikube addons enable kubevirt
+    - name: Create KubeVirt Lastest Operator 
+      shell: bash
+      run: |
+        kubectl version
+        export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+        echo $VERSION
+        kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
+        pod_names=$(kubectl get pod -o name --no-headers -n kubevirt)
+        kubectl wait -n kubevirt --for=condition=Ready $(echo $pod_names) --timeout 100s
+
+        kubectl get all -n kubevirt
+        sleep 10
+        
+        kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-cr.yaml"
+        sleep 10
+        kubectl -n kubevirt patch kubevirt kubevirt --type=merge --patch '{"spec":{"configuration":{"developerConfiguration":{"useEmulation":true}}}}'
+
+        counter=0
+        status=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}")
+        while [[ $status != "Deployed" ]]; do
+          echo "status $status"
+          status=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}")
+          sleep 5
+          counter=$((counter + 1))
+          if [[ $counter -ge 20 ]]; then
+            kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=json
+            break
+          fi
+        done
+        kubectl get all -n kubevirt
+        
+        
+    - name: Install Virtctl
+      shell: bash
+      run: |
+        VERSION=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.observedKubeVirtVersion}")
+        ARCH=$(uname -s | tr A-Z a-z)-$(uname -m | sed 's/x86_64/amd64/') || windows-amd64.exe
+        echo ${ARCH}
+        curl -L -o virtctl https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/virtctl-${VERSION}-${ARCH}
+        chmod +x virtctl
+        sudo install virtctl /usr/local/bin
+    - name: Create Virtual Machine using Virtctl
+      shell: bash
+      run: |
+        wget https://kubevirt.io/labs/manifests/vm.yaml
+        
+        kubectl apply -f https://kubevirt.io/labs/manifests/vm.yaml
+        kubectl get vms
+        kubectl get vms -o yaml testvm
+        virtctl start testvm
+        kubectl patch virtualmachine testvm --type merge -p '{"spec":{"runStrategy": "Always"}}'
+        sleep 40
+        kubectl get vmis
+        kubectl get vmis -o yaml testvm
+        pod_name=$(kubectl get pod -o name --no-headers)
+        kubectl logs $pod_name
