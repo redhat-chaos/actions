@@ -11,8 +11,9 @@ runs:
     - name: Create KubeVirt Lastest Operator 
       shell: bash
       run: |
-        export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
-
+        kubectl version
+        #export VERSION=$(curl -s https://storage.googleapis.com/kubevirt-prow/release/kubevirt/kubevirt/stable.txt)
+        export VERSION=1.5
         echo $VERSION
         kubectl create -f "https://github.com/kubevirt/kubevirt/releases/download/${VERSION}/kubevirt-operator.yaml"
         pod_names=$(kubectl get pod -o name --no-headers -n kubevirt)
