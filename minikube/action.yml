@@ -1,0 +1,42 @@
+name: Create minikube
+description: Creates minikube cluster
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install minikube
+      shell: bash
+      run: |
+        sudo curl -Lo /usr/local/bin/minikube https://github.com/kubernetes/minikube/releases/latest/download/minikube-linux-amd64
+        sudo install minikube-linux-amd64 /usr/local/bin/minikube && rm minikube-linux-amd64
+        sudo curl -Lo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo chmod +x /usr/local/bin/minikube /usr/local/bin/kubectl
+    - name: Start minikube
+      shell: bash
+      run: |
+        minikube start
+    - name: Wait
+      shell: bash
+      run: |
+        for i in {1..20}
+        do
+          kubectl get nodes > output
+          cat output
+          awk '/NotReady/ {print $2}' output > check
+          checknow=$(awk 'NR==1 {print}' check)
+          if [ "$checknow" = "NotReady" ]; then
+            echo "minikube cluster not ready yet"
+          else
+            echo "minikube cluster is up"
+            break
+          fi
+          sleep 5
+        done
+        echo "minikube is ready for use."
+    - name: List minikube nodes
+      shell: bash
+      run: kubectl get nodes

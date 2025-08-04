@@ -1,0 +1,23 @@
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+
+jobs:
+  test_action:
+    runs-on: ubuntu-latest
+    name: Test Minikube action
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Minikube Action Test
+        uses: ./minikube
+      - name: Get Nodes
+        run: kubectl get nodes
+      - name: Create POD
+        run: kubectl apply -f https://k8s.io/examples/pods/simple-pod.yaml
+      - name: Check pods
+        run: kubectl get pods -A
