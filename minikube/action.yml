@@ -18,7 +18,7 @@ runs:
     - name: Start minikube
       shell: bash
       run: |
-        minikube start
+        minikube start --nodes=2 --cni=flannel
     - name: Wait
       shell: bash
       run: |
