@@ -36,7 +36,7 @@ runs:
           status=$(kubectl get kubevirt.kubevirt.io/kubevirt -n kubevirt -o=jsonpath="{.status.phase}")
           sleep 5
           counter=$((counter + 1))
-          if [[ $counter -ge 10 ]]; then
+          if [[ $counter -ge 20 ]]; then
             break
           fi
         done
