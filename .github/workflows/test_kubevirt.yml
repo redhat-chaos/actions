@@ -13,8 +13,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Kind Action Test
-        uses: ./kind
+      - name: Minikube Action Test
+        uses: ./minikube
       - name: Get Nodes
         run: kubectl get nodes
       - name: Create POD
