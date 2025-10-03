@@ -29,7 +29,7 @@ runs:
         elastic/elasticsearch \
         --set security.enabled=true \
         --set service.type=NodePort \
-        --set service.nodePort=$ELASTIC_PORT
+        --set service.nodePort=32766
 
         export ELASTIC_PASSWORD="$(kubectl get secret elasticsearch-master-credentials -o jsonpath='{.data.password}' | base64 --decode)"
         echo "ELASTIC PASSWORD: $ELASTIC_PASSWORD"
