@@ -24,7 +24,7 @@ runs:
       run: |
         # nodePort mapping 32766 -> http://localhost:9091
         helm install \
-        --wait --timeout 360s \
+        --wait --timeout 720s \
         elasticsearch \
         elastic/elasticsearch \
         --set security.enabled=true \
