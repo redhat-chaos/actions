@@ -23,5 +23,11 @@ jobs:
         uses: ./prometheus
       - name: Elastic Action Test
         uses: ./elastic
+        with:
+          ELASTIC_PORT: ${{ secrets.ELASTIC_PORT }}
       - name: Check pods
-        run: kubectl get pods -A
+        if: ${{ success() || failure() }}
+        shell: bash
+        run: |
+          kubectl get pods -A
+          kubectl describe pods -l release=elasticsearch
