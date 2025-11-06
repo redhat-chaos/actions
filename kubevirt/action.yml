@@ -1,0 +1,45 @@
+name: Create Kind and Install Kubevirt
+description: Create Kind and Install Kubevirt
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout action repo
+      uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Install KinD
+      shell: bash
+      run: |
+        sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.26.0/kind-linux-amd64
+        sudo curl -Lo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+        sudo chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
+    - name: Start KinD with Kubevirt
+      shell: bash
+      run: |
+        kind create cluster --wait 300s --config=kubevirt/kind-config.yml
+    - name: Wait
+      shell: bash
+      run: |
+        for i in {1..20}
+        do
+          kubectl get nodes > output
+          cat output
+          awk '/NotReady/ {print $2}' output > check
+          checknow=$(awk 'NR==1 {print}' check)
+          if [ "$checknow" = "NotReady" ]; then
+            echo "KinD cluster not ready yet"
+          else
+            echo "KinD cluster is up"
+            break
+          fi
+          sleep 5
+        done
+        echo "KinD is ready for use."
+    - name: List KinD nodes
+      shell: bash
+      run: kubectl get nodes
+    - name: Setup kubevirt
+      shell: bash
+      run: ./setup-kubevirt.sh
+      working-directory: ./actions/kubevirt
