@@ -22,10 +22,3 @@ nodes:
   extraMounts:
   - hostPath: /dev/kvm
     containerPath: /dev/kvm
-  # Enable necessary features for KubeVirt
-  kubeadmConfigPatches:
-  - |
-    kind: JoinConfiguration
-    nodeRegistration:
-      kubeletExtraArgs:
-        feature-gates: "DevicePlugins=true"
