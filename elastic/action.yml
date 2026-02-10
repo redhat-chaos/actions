@@ -26,23 +26,53 @@ runs:
         ELASTIC_PORT: ${{ inputs.ELASTIC_PORT }}
         RUN_ID: ${{ inputs.RUN_ID }}
       run: |
-        # nodePort mapping 32766 -> http://localhost:9091
-        helm install \
-        --wait --timeout 720s \
-        elasticsearch \
-        elastic/elasticsearch \
-        --set security.enabled=true \
-        --set service.type=NodePort \
-        --set service.nodePort=32766 \
-        --set replicas=1 \
-        --set coordinating.replicaCount=0 \
-        --set ingest.replicaCount=0 \
-        --set replicas=1 --set minimumMasterNodes=1
+        MAX_ATTEMPTS=3
+        ATTEMPT=1
 
-        export ELASTIC_PASSWORD="$(kubectl get secret elasticsearch-master-credentials -o jsonpath='{.data.password}' | base64 --decode)"
-        echo "ELASTIC PASSWORD: $ELASTIC_PASSWORD"
-        echo $ELASTIC_PASSWORD > elastic_password.txt
-        echo "ARTIFACT_NAME=elastic_password_$RUN_ID" >> "$GITHUB_ENV"
+        while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          echo "Attempt $ATTEMPT of $MAX_ATTEMPTS: Deploying Elasticsearch..."
+
+          # nodePort mapping 32766 -> http://localhost:9091
+          if helm install \
+            --wait --timeout 720s \
+            elasticsearch \
+            elastic/elasticsearch \
+            --set security.enabled=true \
+            --set service.type=NodePort \
+            --set service.nodePort=32766 \
+            --set replicas=1 \
+            --set coordinating.replicaCount=0 \
+            --set ingest.replicaCount=0 \
+            --set replicas=1 --set minimumMasterNodes=1; then
+
+            echo "Successfully deployed Elasticsearch, retrieving password..."
+
+            if export ELASTIC_PASSWORD="$(kubectl get secret elasticsearch-master-credentials -o jsonpath='{.data.password}' | base64 --decode)" && \
+               [ -n "$ELASTIC_PASSWORD" ]; then
+              echo "ELASTIC PASSWORD: $ELASTIC_PASSWORD"
+              echo $ELASTIC_PASSWORD > elastic_password.txt
+              echo "ARTIFACT_NAME=elastic_password_$RUN_ID" >> "$GITHUB_ENV"
+              echo "Elasticsearch deployment completed successfully"
+              break
+            else
+              echo "Failed to retrieve Elastic password on attempt $ATTEMPT"
+              helm uninstall elasticsearch || true
+            fi
+          else
+            echo "Helm install failed on attempt $ATTEMPT"
+          fi
+
+          if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Cleaning up failed Elasticsearch deployment..."
+            helm uninstall elasticsearch || true
+            echo "Retrying in 30 seconds..."
+            sleep 30
+          else
+            echo "Failed to deploy Elasticsearch after $MAX_ATTEMPTS attempts"
+            exit 1
+          fi
+          ATTEMPT=$((ATTEMPT + 1))
+        done
 
     - name: Upload artifact
       uses: actions/upload-artifact@v4

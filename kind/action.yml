@@ -11,17 +11,62 @@ runs:
     - name: Install KinD
       shell: bash
       run: |
-        sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.26.0/kind-linux-amd64
-        sudo curl -Lo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-        sudo chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
+        MAX_ATTEMPTS=3
+        ATTEMPT=1
+
+        while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          echo "Attempt $ATTEMPT of $MAX_ATTEMPTS: Installing KinD and kubectl..."
+
+          if sudo curl -Lo /usr/local/bin/kind https://kind.sigs.k8s.io/dl/v0.26.0/kind-linux-amd64 && \
+             sudo curl -Lo /usr/local/bin/kubectl "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && \
+             sudo chmod +x /usr/local/bin/kind /usr/local/bin/kubectl; then
+            echo "Successfully installed KinD and kubectl"
+            break
+          else
+            echo "Installation failed on attempt $ATTEMPT"
+            if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+              echo "Retrying in 10 seconds..."
+              sleep 10
+            else
+              echo "Failed to install KinD after $MAX_ATTEMPTS attempts"
+              exit 1
+            fi
+          fi
+          ATTEMPT=$((ATTEMPT + 1))
+        done
     - name: Start KinD
       shell: bash
       run: |
-        if [ -f kind-config.yml ]; then
-          kind create cluster --wait 300s --config=kind-config.yml
-        else
-          kind create cluster --wait 300s
-        fi
+        MAX_ATTEMPTS=3
+        ATTEMPT=1
+
+        while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          echo "Attempt $ATTEMPT of $MAX_ATTEMPTS: Creating KinD cluster..."
+
+          if [ -f kind-config.yml ]; then
+            if kind create cluster --wait 300s --config=kind-config.yml; then
+              echo "Successfully created KinD cluster with config"
+              break
+            fi
+          else
+            if kind create cluster --wait 300s; then
+              echo "Successfully created KinD cluster"
+              break
+            fi
+          fi
+
+          echo "KinD cluster creation failed on attempt $ATTEMPT"
+          if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Cleaning up failed cluster..."
+            kind delete cluster || true
+            echo "Retrying in 30 seconds..."
+            sleep 30
+          else
+            echo "Failed to create KinD cluster after $MAX_ATTEMPTS attempts"
+            exit 1
+          fi
+          ATTEMPT=$((ATTEMPT + 1))
+        done
     - name: Wait
       shell: bash
       run: |

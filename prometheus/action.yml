@@ -18,19 +18,45 @@ runs:
     - name: Deploy prometheus
       shell: bash
       run: |
-        # nodePort mapping 30000 -> http://localhost:9090
-        kubectl create namespace monitoring
-        helm install \
-        --wait --timeout 360s \
-        kind-prometheus \
-        prometheus-community/kube-prometheus-stack \
-        --namespace monitoring \
-        --set prometheus.service.nodePort=30000 \
-        --set prometheus.service.type=NodePort \
-        --set grafana.service.nodePort=31000 \
-        --set grafana.service.type=NodePort \
-        --set alertmanager.service.nodePort=32000 \
-        --set alertmanager.service.type=NodePort \
-        --set prometheus-node-exporter.service.nodePort=32001 \
-        --set prometheus-node-exporter.service.type=NodePort \
-        --set prometheus.prometheusSpec.maximumStartupDurationSeconds=300
+        MAX_ATTEMPTS=3
+        ATTEMPT=1
+
+        while [ $ATTEMPT -le $MAX_ATTEMPTS ]; do
+          echo "Attempt $ATTEMPT of $MAX_ATTEMPTS: Deploying Prometheus..."
+
+          # Create namespace if it doesn't exist
+          kubectl create namespace monitoring --dry-run=client -o yaml | kubectl apply -f - || true
+
+          # nodePort mapping 30000 -> http://localhost:9090
+          if helm install \
+            --wait --timeout 360s \
+            kind-prometheus \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --set prometheus.service.nodePort=30000 \
+            --set prometheus.service.type=NodePort \
+            --set grafana.service.nodePort=31000 \
+            --set grafana.service.type=NodePort \
+            --set alertmanager.service.nodePort=32000 \
+            --set alertmanager.service.type=NodePort \
+            --set prometheus-node-exporter.service.nodePort=32001 \
+            --set prometheus-node-exporter.service.type=NodePort \
+            --set prometheus.prometheusSpec.maximumStartupDurationSeconds=300; then
+            echo "Prometheus deployment completed successfully"
+            break
+          else
+            echo "Helm install failed on attempt $ATTEMPT"
+          fi
+
+          if [ $ATTEMPT -lt $MAX_ATTEMPTS ]; then
+            echo "Cleaning up failed Prometheus deployment..."
+            helm uninstall kind-prometheus --namespace monitoring || true
+            kubectl delete namespace monitoring || true
+            echo "Retrying in 30 seconds..."
+            sleep 30
+          else
+            echo "Failed to deploy Prometheus after $MAX_ATTEMPTS attempts"
+            exit 1
+          fi
+          ATTEMPT=$((ATTEMPT + 1))
+        done
