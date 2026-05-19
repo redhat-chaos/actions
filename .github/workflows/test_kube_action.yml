@@ -1,0 +1,24 @@
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  pull_request:
+
+jobs:
+  test_action:
+    runs-on: ubuntu-latest
+    name: Test KinD with Kubevirt action
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Kind Action Test
+        uses: ./kubevirt
+      - name: Get Nodes
+        run: kubectl get nodes
+      - name: Check pods
+        if: ${{ success() || failure() }}
+        shell: bash
+        run: |
+          kubectl get pods -A
