@@ -10,6 +10,12 @@ inputs:
   AUTOPUSH:
     description: Auto push token
     required: true
+  COSIGN_PRIVATE_KEY:
+    description: cosign private key (PEM) used to sign the pushed images
+    required: true
+  COSIGN_PASSWORD:
+    description: password protecting the cosign private key
+    required: true
 
 runs:
   using: composite
@@ -48,12 +54,15 @@ runs:
           IMAGE=$(docker compose config --format json | jq -r ".services[\"$scenario\"].image")
           DOCKERFILE=$(docker compose config --format json | jq -r ".services[\"$scenario\"].build.dockerfile")
           echo "Building $scenario -> $IMAGE (dockerfile: $DOCKERFILE)"
+          # Capture the pushed digest at build time (anti-TOCTOU) so signing
+          # binds to exactly these bytes rather than re-resolving the tag later.
           docker buildx build \
             --platform linux/amd64 \
             --push \
             --tag "$IMAGE" \
             --file "$DOCKERFILE" \
             --provenance=false \
+            --metadata-file "meta-${scenario}.json" \
             . &
           pids+=($!)
         done
@@ -64,6 +73,31 @@ runs:
           fi
         done
         exit $failed
+    # Sign every rebuilt scenario image so krknctl / krkn-operator (via the
+    # shared pkg/verify package) can verify it before running. This release-time
+    # rebuild overwrites the krkn-hub tags with new digests, so it must re-sign
+    # them; otherwise the live digests would be unsigned after a krkn release.
+    # Sign by the build-time digest, key-based, --tlog-upload=false, to match
+    # the ecosystem's offline verification policy (no Fulcio/Rekor).
+    - name: Install cosign
+      uses: sigstore/cosign-installer@v4.1.2
+    - name: Sign krkn-hub images with cosign
+      shell: bash
+      working-directory: ./krkn-hub
+      env:
+        COSIGN_PRIVATE_KEY: ${{ inputs.COSIGN_PRIVATE_KEY }}
+        COSIGN_PASSWORD: ${{ inputs.COSIGN_PASSWORD }}
+      run: |
+        set -euo pipefail
+        cosign public-key --key env://COSIGN_PRIVATE_KEY > /tmp/cosign.pub
+        for scenario in $(docker compose config --services); do
+          IMAGE=$(docker compose config --format json | jq -r ".services[\"$scenario\"].image")
+          DIGEST=$(jq -r '.["containerimage.digest"]' "meta-${scenario}.json")
+          REF="${IMAGE%:*}@${DIGEST}"
+          echo "Signing ${REF}"
+          cosign sign --yes --tlog-upload=false --key env://COSIGN_PRIVATE_KEY "${REF}"
+          cosign verify --insecure-ignore-tlog=true --key /tmp/cosign.pub "${REF}"
+        done
     - name: Make push to Prow-Scripts
       uses: redhat-chaos/actions/prow-scripts@main
       with:
