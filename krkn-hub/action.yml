@@ -77,8 +77,14 @@ runs:
     # shared pkg/verify package) can verify it before running. This release-time
     # rebuild overwrites the krkn-hub tags with new digests, so it must re-sign
     # them; otherwise the live digests would be unsigned after a krkn release.
-    # Sign by the build-time digest, key-based, --tlog-upload=false, to match
-    # the ecosystem's offline verification policy (no Fulcio/Rekor).
+    # Sign by the build-time digest, key-based, with a no-transparency-log
+    # signing-config, to match the ecosystem's offline verification policy
+    # (no Fulcio/Rekor/TSA). cosign 2.6+ (installer v4.x) deprecated
+    # --tlog-upload and made --tlog-upload=false incompatible with its
+    # signing-config flow, so we pass a signing-config whose tlog/timestamp
+    # services are stripped. It is vendored alongside this action
+    # (signing-config.json) rather than fetched at run time, so a moved/removed
+    # upstream file can't break signing.
     - name: Install cosign
       uses: sigstore/cosign-installer@v4.1.2
     - name: Sign krkn-hub images with cosign
@@ -95,7 +101,7 @@ runs:
           DIGEST=$(jq -r '.["containerimage.digest"]' "meta-${scenario}.json")
           REF="${IMAGE%:*}@${DIGEST}"
           echo "Signing ${REF}"
-          cosign sign --yes --tlog-upload=false --key env://COSIGN_PRIVATE_KEY "${REF}"
+          cosign sign --yes --signing-config "${{ github.action_path }}/signing-config.json" --key env://COSIGN_PRIVATE_KEY "${REF}"
           cosign verify --insecure-ignore-tlog=true --key /tmp/cosign.pub "${REF}"
         done
     - name: Make push to Prow-Scripts
