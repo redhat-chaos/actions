@@ -104,6 +104,62 @@ runs:
           cosign sign --yes --signing-config "${{ github.action_path }}/signing-config.json" --key env://COSIGN_PRIVATE_KEY "${REF}"
           cosign verify --insecure-ignore-tlog=true --key /tmp/cosign.pub "${REF}"
         done
+    # The images above are amd64-only and live under quay.io/krkn-chaos/krkn-hub.
+    # krkn-hub's own CI also publishes multi-arch (amd64+arm64) variants under a
+    # parallel quay.io/krkn-chaos/krkn-hub-multiarch repo. This release-time
+    # rebuild must refresh those too, otherwise the multiarch tags stay pinned to
+    # the previous krkn base after a release. Mirror krkn-hub's build-multiarch
+    # job: map krkn-hub: -> krkn-hub-multiarch: and skip images that aren't under
+    # krkn-hub (e.g. cerberus, which stays amd64-only). Built sequentially, not in
+    # parallel like the amd64 loop above, because arm64 is emulated via QEMU and
+    # running every scenario at once would exhaust the runner's disk/memory.
+    - name: Build and push multi-arch Docker images
+      shell: bash
+      working-directory: ./krkn-hub
+      run: |
+        set -euo pipefail
+        for scenario in $(docker compose config --services); do
+          IMAGE=$(docker compose config --format json | jq -r ".services[\"$scenario\"].image")
+          DOCKERFILE=$(docker compose config --format json | jq -r ".services[\"$scenario\"].build.dockerfile")
+          case "$IMAGE" in
+            */krkn-hub:*) MULTIARCH_IMAGE="${IMAGE/\/krkn-hub://krkn-hub-multiarch:}" ;;
+            *) echo "Skipping multi-arch build for $scenario ($IMAGE)"; continue ;;
+          esac
+          echo "Building $scenario -> $MULTIARCH_IMAGE (dockerfile: $DOCKERFILE)"
+          # Capture the pushed manifest-list digest at build time (anti-TOCTOU) so
+          # signing binds to exactly these bytes rather than re-resolving the tag.
+          docker buildx build \
+            --platform linux/amd64,linux/arm64 \
+            --push \
+            --tag "$MULTIARCH_IMAGE" \
+            --file "$DOCKERFILE" \
+            --provenance=false \
+            --metadata-file "meta-multiarch-${scenario}.json" \
+            .
+        done
+    # Sign the multi-arch scenario images by their manifest-list digest, same
+    # key-based no-transparency-log policy as the amd64 signing step above.
+    - name: Sign multi-arch krkn-hub images with cosign
+      shell: bash
+      working-directory: ./krkn-hub
+      env:
+        COSIGN_PRIVATE_KEY: ${{ inputs.COSIGN_PRIVATE_KEY }}
+        COSIGN_PASSWORD: ${{ inputs.COSIGN_PASSWORD }}
+      run: |
+        set -euo pipefail
+        cosign public-key --key env://COSIGN_PRIVATE_KEY > /tmp/cosign.pub
+        for scenario in $(docker compose config --services); do
+          IMAGE=$(docker compose config --format json | jq -r ".services[\"$scenario\"].image")
+          case "$IMAGE" in
+            */krkn-hub:*) MULTIARCH_IMAGE="${IMAGE/\/krkn-hub://krkn-hub-multiarch:}" ;;
+            *) continue ;;
+          esac
+          DIGEST=$(jq -r '.["containerimage.digest"]' "meta-multiarch-${scenario}.json")
+          REF="${MULTIARCH_IMAGE%:*}@${DIGEST}"
+          echo "Signing ${REF}"
+          cosign sign --yes --signing-config "${{ github.action_path }}/signing-config.json" --key env://COSIGN_PRIVATE_KEY "${REF}"
+          cosign verify --insecure-ignore-tlog=true --key /tmp/cosign.pub "${REF}"
+        done
     - name: Make push to Prow-Scripts
       uses: redhat-chaos/actions/prow-scripts@main
       with:
